@@ -2,6 +2,6 @@
 window.LITORA = {
   SUPABASE_URL: "https://zuzczmbnfiqrkooglbfz.supabase.co",
   SUPABASE_KEY: "sb_publishable_f5UpYFR6yi6_Nz1Mu2yR9g_DGvfBQ8N",
-  UPI_ID: "",        // where customers pay, e.g. 9225305036@fam
+  UPI_ID: "",        // where customers pay, e.g. 
   CONTACT: ""        // WhatsApp/email shown after an order is placed
 };
