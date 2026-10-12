@@ -1,0 +1,66 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Litora Books | Your Next Chapter Starts Here</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Newsreader:opsz,wght@6..72,500;6..72,700&family=Hanken+Grotesk:wght@400;600&display=swap">
+<link rel="stylesheet" href="style.css"></head><body>
+<header class="top"><div class="wrap"><a class="logo" href="./" style="text-decoration:none;color:inherit">Litora Books</a>
+<button class="btn alt sm" id="th">Theme</button><button class="btn alt sm" id="lib">My Library</button><button class="btn sm" id="acct">Sign in</button></div></header>
+<main class="wrap"><section class="hero"><h1>Your Next Chapter Starts Here.</h1><p>Buy an e-book, get it in your library, download it anywhere.</p></section>
+<div class="bar"><input id="q" type="search" placeholder="Search title, author, category, tag" aria-label="Search">
+<select id="cat" aria-label="Category"><option value="">All categories</option></select>
+<select id="so" aria-label="Sort"><option value="new">Newest</option><option value="lo">Price: low to high</option><option value="hi">Price: high to low</option></select></div>
+<div class="grid" id="grid"></div></main>
+<footer class="wrap mu" style="padding:2rem 1rem">Digital goods: files are delivered to your library after payment is confirmed.</footer>
+
+<dialog id="dBook"></dialog>
+<dialog id="dAuth"><h2 id="aT">Sign in</h2><form id="fA"><div id="nmW" hidden><label>Name</label><input id="nm"></div>
+<label>Email</label><input id="em" type="email" required autocomplete="email"><label>Password</label><input id="pw" type="password" minlength="8" required autocomplete="current-password">
+<label><input type="checkbox" style="width:auto" onchange="pw.type=this.checked?'text':'password'"> Show password</label><div id="aM"></div>
+<p><button class="btn">Continue</button> <button type="button" class="btn alt" id="sw">Create account</button> <button type="button" class="btn alt" id="fg">Forgot password</button></p></form></dialog>
+<dialog id="dLib"><h2>My Library</h2><div id="libB"></div><p><button class="btn alt" onclick="dLib.close()">Close</button></p></dialog>
+
+<script src="config.js"></script><script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
+<script>(function(){var c=window.LITORA;if(!c||!c.SUPABASE_URL||!c.SUPABASE_KEY||!window.supabase){document.body.insertAdjacentHTML('afterbegin','<div style="background:#b3412f;color:#fff;padding:1rem;font:16px sans-serif">Setup problem: '+(!c?'config.js was not found. Keep it in the same folder as this file and check the name is exactly config.js (not config.js.txt).':!c.SUPABASE_URL||!c.SUPABASE_KEY?'config.js is empty. Paste your Supabase URL and anon key between the quotes.':'The Supabase library did not load. Check your internet connection.')+'</div>');throw new Error('Litora setup incomplete')}})()</script>
+<script>
+const L=window.LITORA,$=s=>document.querySelector(s),sb=supabase.createClient(L.SUPABASE_URL,L.SUPABASE_KEY);
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const inr=p=>'₹'+(p/100).toLocaleString('en-IN');let books=[],user=null,signup=false;
+// theme: light / dark / system
+const mq=matchMedia('(prefers-color-scheme:dark)');let tm=localStorage.th||'system';
+function applyTheme(){document.documentElement.dataset.theme=tm==='system'?(mq.matches?'dark':'light'):tm;$('#th').textContent='Theme: '+tm}
+$('#th').onclick=async()=>{tm={system:'light',light:'dark',dark:'system'}[tm];localStorage.th=tm;applyTheme();if(user)await sb.from('profiles').update({theme:tm}).eq('id',user.id)};mq.onchange=applyTheme;applyTheme();
+const cover=b=>b.cover_path?`background-image:url(${sb.storage.from('covers').getPublicUrl(b.cover_path).data.publicUrl})`:'';
+async function load(){const{data,error}=await sb.from('books').select('*').eq('status','published').order('created_at',{ascending:false});
+ if(error){$('#grid').innerHTML='<div class="empty">Could not load books. Check config.js and that schema.sql ran.</div>';return}
+ books=data;[...new Set(books.map(b=>b.category).filter(Boolean))].forEach(c=>$('#cat').add(new Option(c,c)));draw()}
+function draw(){const q=$('#q').value.toLowerCase(),c=$('#cat').value,s=$('#so').value;
+ let r=books.filter(b=>(!c||b.category===c)&&[b.title,b.author,b.category,b.description,(b.tags||[]).join(' ')].join(' ').toLowerCase().includes(q));
+ if(s==='lo')r.sort((a,b)=>a.price_paise-b.price_paise);if(s==='hi')r.sort((a,b)=>b.price_paise-a.price_paise);
+ $('#grid').innerHTML=r.length?r.map(b=>`<button class="bk" data-id="${b.id}"><div class="cv" style="${cover(b)}">${b.cover_path?'':esc(b.title)}</div><h3>${esc(b.title)}</h3><div class="mu">${esc(b.author)}</div>
+ <div class="pr"><b>${inr(b.price_paise)}</b>${b.original_price_paise>b.price_paise?`<s>${inr(b.original_price_paise)}</s>`:''}</div></button>`).join(''):'<div class="empty">No books match. Clear the search or pick another category.</div>'}
+['q','cat','so'].forEach(i=>$('#'+i).oninput=draw);
+$('#grid').onclick=e=>{const b=e.target.closest('.bk');if(b)show(b.dataset.id)};
+function show(id){const b=books.find(x=>x.id===id);$('#dBook').innerHTML=`<h2>${esc(b.title)}</h2><p class="mu">${esc(b.subtitle||'')} by ${esc(b.author)}</p><p>${esc(b.description)}</p>
+ <p class="mu">${esc(b.language||'')}${b.pages?' · '+b.pages+' pages':''} · PDF</p><p class="pr"><b>${inr(b.price_paise)}</b></p><div id="bM"></div>
+ <button class="btn" id="buy">Buy now</button> <button class="btn alt" onclick="dBook.close()">Close</button>`;$('#dBook').showModal();$('#buy').onclick=()=>buy(b)}
+async function buy(b){if(!user){$('#dBook').close();return openAuth()}
+ const{data,error}=await sb.from('orders').insert({book_id:b.id}).select().single();
+ $('#bM').innerHTML=error?`<div class="msg err">${esc(error.message)}</div>`:`<div class="msg">Order <b>${data.ref}</b> placed for ${inr(data.amount_paise)}. Pay ${esc(L.UPI_ID)} with the order reference as the note${L.CONTACT?', then message '+esc(L.CONTACT):''}. The book appears in My Library once payment is confirmed.</div>`;if(!error)$('#buy').hidden=true}
+function openAuth(){$('#dAuth').showModal()}
+function mode(s){signup=s;$('#aT').textContent=s?'Create account':'Sign in';$('#nmW').hidden=!s;$('#sw').textContent=s?'I have an account':'Create account'}
+$('#sw').onclick=()=>mode(!signup);
+$('#fA').onsubmit=async e=>{e.preventDefault();const em=$('#em').value,pw=$('#pw').value;
+ const r=signup?await sb.auth.signUp({email:em,password:pw,options:{data:{name:$('#nm').value},emailRedirectTo:location.href}}):await sb.auth.signInWithPassword({email:em,password:pw});
+ $('#aM').innerHTML=r.error?`<div class="msg err">${esc(r.error.message)}</div>`:signup&&!r.data.session?'<div class="msg">Check your email to verify your account, then sign in.</div>':'';if(!r.error&&r.data.session)$('#dAuth').close()};
+$('#fg').onclick=async()=>{const em=$('#em').value;if(!em)return $('#aM').innerHTML='<div class="msg err">Enter your email first.</div>';
+ const{error}=await sb.auth.resetPasswordForEmail(em,{redirectTo:location.href});$('#aM').innerHTML=`<div class="msg ${error?'err':''}">${error?esc(error.message):'Reset link sent. Check your email.'}</div>`};
+$('#acct').onclick=async()=>{if(user){await sb.auth.signOut()}else openAuth()};
+sb.auth.onAuthStateChange(async(ev,s)=>{user=s?.user||null;$('#acct').textContent=user?'Sign out':'Sign in';
+ if(ev==='PASSWORD_RECOVERY'){const p=prompt('New password (min 8 characters)');if(p){const{error}=await sb.auth.updateUser({password:p});alert(error?error.message:'Password updated.')}}
+ if(user){const{data}=await sb.from('profiles').select('theme,is_suspended').eq('id',user.id).single();if(data?.theme&&!localStorage.th){tm=data.theme;applyTheme()}}});
+$('#lib').onclick=async()=>{if(!user)return openAuth();const{data,error}=await sb.from('orders').select('*,books(title,author,file_path)').order('created_at',{ascending:false});
+ $('#libB').innerHTML=error?`<div class="msg err">${esc(error.message)}</div>`:data.length?data.map(o=>`<div class="msg"><b>${esc(o.title)}</b> <span class="tag">${o.status}</span><br><span class="mu">${o.ref} · ${inr(o.amount_paise)} · ${new Date(o.created_at).toLocaleDateString('en-IN')}</span>
+ ${o.status==='paid'&&o.books?.file_path?`<br><button class="btn sm" data-f="${esc(o.books.file_path)}" data-t="${esc(o.title)}">Download PDF</button>`:''}</div>`).join(''):'<div class="empty">Nothing here yet. Buy a book and it will show up here.</div>';$('#dLib').showModal()};
+$('#libB').onclick=async e=>{const f=e.target.dataset.f;if(!f)return;
+ const{data,error}=await sb.storage.from('book-files').createSignedUrl(f,60,{download:e.target.dataset.t+'.pdf'});if(error)return alert('Download not allowed: '+error.message);location.href=data.signedUrl};
+load();
+</script></body></html>
