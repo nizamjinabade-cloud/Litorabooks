@@ -1,0 +1,165 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Litora Books | Your Next Chapter Starts Here</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Quicksand:wght@500;600;700&display=swap">
+<link rel="icon" href="data:,"><link rel="stylesheet" href="style.css"></head><body>
+<div class="app">
+<aside class="side"><button id="av" data-v="prof" title="Profile">📚</button>
+<button data-v="shop" class="on" title="Shop">🏠<small>Shop</small></button>
+<button data-v="wish" title="Wishlist">♥<small>Wishlist</small><i class="bdg" id="wn"></i></button>
+<button data-v="lib" title="My Library">📖<small>Library</small></button>
+<button data-v="prof" title="Profile">👤<small>Profile</small></button>
+<span class="sp"></span>
+<button id="hp" title="Help chat">💬<small>Help</small></button>
+<button id="th" title="Theme">◐<small>Theme</small></button></aside>
+
+<div class="main">
+<div class="tb"><input id="q" type="search" placeholder="Search title, author, category, tag" aria-label="Search"><button class="btn go" id="gb">Search</button>
+<button class="ic" data-v="cart" aria-label="Cart">🛒<i class="bdg" id="cn"></i></button><button class="btn sm" id="acct">Sign in</button></div>
+<nav class="cats" id="cats" aria-label="Categories"></nav>
+
+<section class="view" id="v-shop">
+<div class="sec"><h2>New arrivals</h2><button class="arr" id="pv" aria-label="Scroll left">‹</button><button class="arr" id="nx" aria-label="Scroll right">›</button></div>
+<div class="row" id="row"></div>
+<div class="promo" id="promo"></div>
+<div class="sec"><h2 id="gt">All books</h2><select id="pm" aria-label="Max price"><option value="">Any price</option><option value="10000">Under ₹100</option><option value="20000">Under ₹200</option><option value="50000">Under ₹500</option></select>
+<select id="so" aria-label="Sort"><option value="new">Newest</option><option value="lo">Price: low to high</option><option value="hi">Price: high to low</option></select></div>
+<div class="grid" id="grid"></div></section>
+
+<section class="view" id="v-wish" hidden><div class="sec"><h2>Your wishlist</h2></div><div class="grid" id="wg"></div></section>
+<section class="view" id="v-cart" hidden><div class="sec"><h2>Your cart</h2></div><div id="cb"></div></section>
+<section class="view" id="v-lib" hidden><div class="sec"><h2>My Library</h2></div><div id="lb"></div></section>
+<section class="view" id="v-prof" hidden><div class="sec"><h2>Your profile</h2></div><div id="pb"></div></section>
+<footer>Digital goods: files are delivered to your library after payment is confirmed.</footer>
+</div></div>
+
+<aside class="chat" id="chat" aria-label="Help chat"><header>💬 Litora help <button id="cx" aria-label="Close chat">✕</button></header><div id="cm2"></div>
+<div class="chips"><button>How do I pay?</button><button>Where is my book?</button><button>Contact support</button></div>
+<form id="cf"><input id="ci" placeholder="Write a message…" aria-label="Message"><button class="btn sm go">Send</button></form></aside>
+<div id="toast" role="status"></div>
+
+<dialog id="dBook"></dialog>
+<dialog id="dAuth"><h2 id="aT">Sign in</h2><form id="fA"><div id="nmW" hidden><label>Name</label><input id="nm"></div>
+<label>Email</label><input id="em" type="email" required autocomplete="email"><label>Password</label><input id="pw" type="password" minlength="8" required autocomplete="current-password">
+<label><input type="checkbox" style="width:auto" onchange="pw.type=this.checked?'text':'password'"> Show password</label><div id="aM"></div>
+<p><button class="btn">Continue</button> <button type="button" class="btn alt" id="sw">Create account</button> <button type="button" class="btn alt" id="fg">Forgot password</button> <button type="button" class="btn alt" onclick="dAuth.close()">Close</button></p></form></dialog>
+
+<script src="config.js"></script><script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
+<script>(function(){var c=window.LITORA;if(!c||!c.SUPABASE_URL||!c.SUPABASE_KEY||!window.supabase){document.body.insertAdjacentHTML('afterbegin','<div style="background:#b3412f;color:#fff;padding:1rem;font:16px sans-serif">Setup problem: '+(!c?'config.js was not found. Keep it in the same folder as this file and check the name is exactly config.js (not config.js.txt).':!c.SUPABASE_URL||!c.SUPABASE_KEY?'config.js is empty. Paste your Supabase URL and anon key between the quotes.':'The Supabase library did not load. Check your internet connection.')+'</div>');throw new Error('Litora setup incomplete')}})()</script>
+<script>
+const L=window.LITORA,$=s=>document.querySelector(s),$$=s=>[...document.querySelectorAll(s)],sb=supabase.createClient(L.SUPABASE_URL,L.SUPABASE_KEY);
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const inr=p=>'₹'+(p/100).toLocaleString('en-IN');
+const ls=(k,d)=>{try{return JSON.parse(localStorage[k])}catch(e){return d}},sv=(k,v)=>{try{localStorage[k]=JSON.stringify(v)}catch(e){}};
+let books=[],user=null,signup=false,cat='',view='shop',wish=ls('lw',[]),cart=ls('lc',[]),cmsg='',pav='📚';
+function toast(t){const e=$('#toast');e.textContent=t;e.classList.add('on');clearTimeout(toast.t);toast.t=setTimeout(()=>e.classList.remove('on'),2200)}
+// theme: light / dark / system
+const mq=matchMedia('(prefers-color-scheme:dark)');let tm=localStorage.th||'system';
+function applyTheme(){document.documentElement.dataset.theme=tm==='system'?(mq.matches?'dark':'light'):tm;$('#th').title='Theme: '+tm}
+$('#th').onclick=async()=>{tm={system:'light',light:'dark',dark:'system'}[tm];localStorage.th=tm;applyTheme();toast('Theme: '+tm);if(user)await sb.from('profiles').update({theme:tm}).eq('id',user.id)};mq.onchange=applyTheme;applyTheme();
+// covers
+const hue=s=>[...String(s)].reduce((a,c)=>a+c.charCodeAt(0),0)%360;
+const cv=b=>b.cover_path?`background-image:url(${sb.storage.from('covers').getPublicUrl(b.cover_path).data.publicUrl})`:`background:linear-gradient(155deg,hsl(${hue(b.title)} 55% 62%),hsl(${(hue(b.title)+40)%360} 50% 38%))`;
+const card=b=>`<article class="bk" data-id="${b.id}"><div class="cv" style="${cv(b)}">${b.cover_path?'':'<span>'+esc(b.title)+'</span>'}<i class="rb"></i><button class="hb${wish.includes(b.id)?' on':''}" data-w="${b.id}" aria-label="Wishlist">♥</button></div>
+<h3>${esc(b.title)}</h3><div class="au">${esc(b.author)}</div><div class="pr"><b>${inr(b.price_paise)}</b>${b.original_price_paise>b.price_paise?`<s>${inr(b.original_price_paise)}</s>`:''}</div><button class="btn sm ad" data-a="${b.id}">Add to cart</button></article>`;
+const em=c=>{c=c.toLowerCase();return /rom/.test(c)?'💕':/fant/.test(c)?'🐉':/crime|myst|thril/.test(c)?'🔍':/manga|comic/.test(c)?'🎌':/kid|child/.test(c)?'🧸':/self|help/.test(c)?'🌱':/busi|money|fin/.test(c)?'💼':/sci/.test(c)?'🚀':/hist/.test(c)?'🏛️':/fic/.test(c)?'📖':'📘'};
+// load & draw
+async function load(){const{data,error}=await sb.from('books').select('*').eq('status','published').order('created_at',{ascending:false});
+ if(error){$('#grid').innerHTML='<div class="empty">Could not load books: '+esc(error.message)+'</div>';return}
+ books=data;drawCats();refresh()}
+function drawCats(){const cs=[...new Set(books.map(b=>b.category).filter(Boolean))],items=[['','All','📚'],['__new','New','✨'],['__sale','Deals','🏷️'],...cs.map(c=>[c,c,em(c)])];
+ $('#cats').innerHTML=items.map(([k,l,e])=>`<button data-c="${esc(k)}" class="${k===cat?'on':''}"><span>${e}</span>${esc(l)}</button>`).join('')}
+function list(){const t=$('#q').value.toLowerCase(),pm=+$('#pm').value,s=$('#so').value;
+ let r=books.filter(b=>(cat===''||cat==='__new'||(cat==='__sale'?b.original_price_paise>b.price_paise:b.category===cat))&&(!pm||b.price_paise<=pm)&&[b.title,b.author,b.category,b.description,(b.tags||[]).join(' ')].join(' ').toLowerCase().includes(t));
+ if(cat==='__new')r=r.slice(0,12);if(s==='lo')r.sort((a,b)=>a.price_paise-b.price_paise);if(s==='hi')r.sort((a,b)=>b.price_paise-a.price_paise);return r}
+function promo(){const d=books.filter(b=>b.original_price_paise>b.price_paise).sort((a,b)=>(b.original_price_paise-b.price_paise)-(a.original_price_paise-a.price_paise)),l=(d.length?d:books).slice(0,3);
+ $('#promo').innerHTML=books.length?`<div class="stack"><i></i><i></i><i></i><i></i></div><div class="pt"><h2>${d.length?'Biggest deals right now':'Fresh on the shelf'}</h2><p>${d.length?'Books with the largest price drops.':'The newest e-books added to Litora.'}</p><button class="btn coral" data-c="${d.length?'__sale':''}">View all</button></div>
+ <div class="ml">${l.map(b=>`<div class="mini" data-id="${b.id}"><div class="mc" style="${cv(b)}"></div><div><b>${esc(b.title)}</b><span>${inr(b.price_paise)}</span></div></div>`).join('')}</div>`:''}
+function draw(){const r=list();$('#grid').innerHTML=r.length?r.map(card).join(''):'<div class="empty">No books match. Clear the search or pick another category.</div>';
+ $('#gt').textContent=cat===''?'All books':cat==='__new'?'New books':cat==='__sale'?'Deals':cat;$('#row').innerHTML=books.slice(0,10).map(card).join('');promo()}
+function refresh(){$('#wn').textContent=wish.length||'';$('#cn').textContent=cart.length||'';draw();if(view==='wish')drawWish();if(view==='cart')drawCart()}
+function drawWish(){const r=books.filter(b=>wish.includes(b.id));$('#wg').innerHTML=r.length?r.map(card).join(''):'<div class="empty">No favourites yet. Tap the ♥ on any book to save it here.</div>'}
+function drawCart(){const it=cart.map(i=>books.find(b=>b.id===i)).filter(Boolean),t=it.reduce((a,b)=>a+b.price_paise,0);
+ $('#cb').innerHTML=(it.length?it.map(b=>`<div class="li"><div class="mc" style="${cv(b)}"></div><div><b>${esc(b.title)}</b><div class="mu">${esc(b.author)}</div></div><b>${inr(b.price_paise)}</b><button class="btn sm alt" data-rm="${b.id}">Remove</button></div>`).join('')+`<div class="tot"><span>Total</span><b>${inr(t)}</b></div><button class="btn" id="co">Place order</button>`:'<div class="empty">Your cart is empty. Add a book and it will wait here.</div>')+cmsg}
+async function checkout(){if(!(await who()))return openAuth();
+ const it=cart.map(i=>books.find(b=>b.id===i)).filter(Boolean),refs=[];let tot=0,err='';
+ for(const b of it){const{data,error}=await sb.from('orders').insert({book_id:b.id}).select().single();if(error){err=error.message;break}refs.push(data.ref);tot+=data.amount_paise;cart=cart.filter(i=>i!==b.id)}
+ sv('lc',cart);cmsg=(refs.length?`<div class="msg">Placed ${refs.length} order${refs.length>1?'s':''}: <b>${refs.map(esc).join(', ')}</b> (total ${inr(tot)}). Pay ${esc(L.UPI_ID)} with the order reference as the note${L.CONTACT?', then message '+esc(L.CONTACT):''}. Books appear in My Library once payment is confirmed.</div>`:'')+(err?`<div class="msg err">${esc(err)}</div>`:'');refresh()}
+function tog(id){wish=wish.includes(id)?wish.filter(i=>i!==id):[...wish,id];sv('lw',wish);toast(wish.includes(id)?'Saved to wishlist':'Removed from wishlist');refresh()}
+function addCart(id){if(cart.includes(id))return toast('Already in your cart');cart.push(id);sv('lc',cart);cmsg='';toast('Added to cart');refresh()}
+// navigation
+function go(v){view=v;$$('.view').forEach(s=>s.hidden=s.id!=='v-'+v);$$('.side [data-v]').forEach(b=>b.classList.toggle('on',b.dataset.v===v&&b.id!=='av'));
+ if(v==='wish')drawWish();if(v==='cart')drawCart();if(v==='lib')drawLib();if(v==='prof')drawProf();scrollTo({top:0})}
+function openBook(id){const b=books.find(x=>x.id===id);if(!b)return;$('#dBook').innerHTML=`<h2>${esc(b.title)}</h2><p class="mu">${esc(b.subtitle||'')} by ${esc(b.author)}</p><p>${esc(b.description)}</p>
+ <p class="mu">${esc(b.language||'')}${b.pages?' · '+b.pages+' pages':''} · PDF</p><p class="pr"><b>${inr(b.price_paise)}</b>${b.original_price_paise>b.price_paise?`<s>${inr(b.original_price_paise)}</s>`:''}</p>
+ <button class="btn" data-a="${b.id}" data-buy="1">Buy now</button> <button class="btn alt" data-a="${b.id}">Add to cart</button> <button class="btn alt" data-w="${b.id}">♥ Wishlist</button> <button class="btn alt" onclick="dBook.close()">Close</button>`;$('#dBook').showModal()}
+document.addEventListener('click',async e=>{const t=e.target;let x;
+ if(x=t.closest('[data-w]'))return tog(x.dataset.w);
+ if(x=t.closest('[data-a]')){addCart(x.dataset.a);if(x.dataset.buy){$('#dBook').close();go('cart')}return}
+ if(x=t.closest('[data-rm]')){cart=cart.filter(i=>i!==x.dataset.rm);sv('lc',cart);return refresh()}
+ if(x=t.closest('[data-v]'))return go(x.dataset.v);
+ if(x=t.closest('[data-c]')){cat=x.dataset.c;drawCats();go('shop');return draw()}
+ if(x=t.closest('[data-f]')){const{data,error}=await sb.storage.from('book-files').createSignedUrl(x.dataset.f,60,{download:x.dataset.t+'.pdf'});if(error)return alert('Download not allowed: '+error.message);return void(location.href=data.signedUrl)}
+ if(t.closest('#co'))return checkout();
+ if(x=t.closest('[data-id]'))openBook(x.dataset.id)});
+let dt;$('#q').oninput=()=>{clearTimeout(dt);dt=setTimeout(()=>{go('shop');draw()},150)};$('#gb').onclick=()=>{go('shop');draw()};['pm','so'].forEach(i=>$('#'+i).oninput=draw);
+$('#pv').onclick=()=>$('#row').scrollBy({left:-500,behavior:'smooth'});$('#nx').onclick=()=>$('#row').scrollBy({left:500,behavior:'smooth'});
+// auth
+function openAuth(){$('#dAuth').showModal()}
+function mode(s){signup=s;$('#aT').textContent=s?'Create account':'Sign in';$('#nmW').hidden=!s;$('#sw').textContent=s?'I have an account':'Create account'}
+$('#sw').onclick=()=>mode(!signup);
+$('#fA').onsubmit=async e=>{e.preventDefault();const em=$('#em').value,pw=$('#pw').value;
+ const r=signup?await sb.auth.signUp({email:em,password:pw,options:{data:{name:$('#nm').value},emailRedirectTo:location.href}}):await sb.auth.signInWithPassword({email:em,password:pw});
+ $('#aM').innerHTML=r.error?`<div class="msg err">${esc(r.error.message)}</div>`:signup&&!r.data.session?'<div class="msg">Check your email to verify your account, then sign in.</div>':'';if(!r.error&&r.data.session)$('#dAuth').close()};
+$('#fg').onclick=async()=>{const em=$('#em').value;if(!em)return $('#aM').innerHTML='<div class="msg err">Enter your email first.</div>';
+ const{error}=await sb.auth.resetPasswordForEmail(em,{redirectTo:location.href});$('#aM').innerHTML=`<div class="msg ${error?'err':''}">${error?esc(error.message):'Reset link sent. Check your email.'}</div>`};
+function setAv(){pav=user?.user_metadata?.avatar||'📚';$('#av').textContent=pav}
+sb.auth.onAuthStateChange((ev,s)=>{user=s?.user||null;$('#acct').textContent=user?'Sign out':'Sign in';setAv();
+ // never await Supabase calls inside this callback (it can freeze the client); defer them instead
+ setTimeout(async()=>{
+  if(ev==='PASSWORD_RECOVERY'){const p=prompt('New password (min 8 characters)');if(p){const{error}=await sb.auth.updateUser({password:p});alert(error?error.message:'Password updated.')}}
+  if(user){const{data}=await sb.from('profiles').select('theme').eq('id',user.id).maybeSingle();if(data?.theme&&!localStorage.th){tm=data.theme;applyTheme()}}
+  if(view==='prof'||view==='lib')go(view)
+ },0)});
+const wait=(p,ms)=>Promise.race([p,new Promise(r=>setTimeout(()=>r('timeout'),ms))]);
+async function who(){if(user)return user;try{const r=await wait(sb.auth.getSession(),3000);user=r?.data?.session?.user||null}catch(e){}return user}
+$('#acct').onclick=async()=>{if(!(await who()))return openAuth();
+ try{await wait(sb.auth.signOut({scope:'local'}),2000)}catch(e){}
+ Object.keys(localStorage).filter(k=>k.startsWith('sb-')).forEach(k=>localStorage.removeItem(k));location.reload()};
+// library
+async function getOrders(){const r=await wait(sb.from('orders').select('*,books(title,author,file_path)').order('created_at',{ascending:false}),10000);
+ if(r==='timeout')throw Error('Taking too long. Press Sign out, then sign in again.');if(r.error)throw r.error;return r.data}
+async function drawLib(){const el=$('#lb');if(!(await who())){el.innerHTML='<div class="empty">Sign in to see your books.<br><br><button class="btn" onclick="openAuth()">Sign in</button></div>';return}
+ el.innerHTML='<div class="msg">Loading your library…</div>';
+ try{const d=await getOrders(),n=o=>o.books?.title||o.title||'Book';
+  el.innerHTML=d.length?d.map(o=>`<div class="li"><div><b>${esc(n(o))}</b> <span class="tag ${o.status}">${esc(o.status)}</span><div class="mu">${esc(o.ref)} · ${inr(o.amount_paise)} · ${new Date(o.created_at).toLocaleDateString('en-IN')}</div>
+  ${o.status==='paid'&&o.books?.file_path?`<button class="btn sm" data-f="${esc(o.books.file_path)}" data-t="${esc(n(o))}">Download PDF</button>`:o.status==='pending'?`<div class="mu">Pay ${esc(L.UPI_ID)} with ${esc(o.ref)} as the note. Waiting for confirmation.</div>`:''}</div></div>`).join(''):'<div class="empty">Nothing here yet. Buy a book and it will show up here.</div>'}
+ catch(x){el.innerHTML=`<div class="msg err">${esc(x.message||x)}</div>`}}
+// profile
+const AV=['📚','🦉','🌸','🦊','🐱','🌙','☕','🚀'];
+async function drawProf(){const el=$('#pb');if(!(await who())){el.innerHTML='<div class="empty">Sign in to see and edit your profile.<br><br><button class="btn" onclick="openAuth()">Sign in</button></div>';return}
+ const m=user.user_metadata||{};pav=m.avatar||'📚';
+ el.innerHTML=`<div class="pf"><div class="big" id="pbig">${pav}</div><div class="avs">${AV.map(a=>`<button data-av="${a}" class="${a===pav?'on':''}">${a}</button>`).join('')}</div>
+ <div class="stats"><div><b id="s1">–</b>Orders</div><div><b id="s2">–</b>Owned</div><div><b>${wish.length}</b>Wishlist</div></div>
+ <div><label>Name</label><input id="pn" value="${esc(m.name||'')}" placeholder="Your name"></div><div><label>Email</label><input value="${esc(user.email)}" disabled></div>
+ <div><label>Theme</label><select id="pt">${['system','light','dark'].map(x=>`<option ${x===tm?'selected':''}>${x}</option>`).join('')}</select></div>
+ <div><button class="btn" id="ps">Save profile</button></div>
+ <div><label>New password</label><input id="pp" type="password" minlength="8" placeholder="At least 8 characters" autocomplete="new-password"></div><div><button class="btn alt" id="pu">Change password</button></div></div>`;
+ try{const d=await getOrders();$('#s1').textContent=d.length;$('#s2').textContent=d.filter(o=>o.status==='paid').length}catch(e){}}
+$('#pb').addEventListener('click',async e=>{const t=e.target;
+ if(t.dataset.av){pav=t.dataset.av;$('#pbig').textContent=pav;$$('[data-av]').forEach(b=>b.classList.toggle('on',b===t))}
+ if(t.id==='ps'){const{error}=await sb.auth.updateUser({data:{name:$('#pn').value.trim(),avatar:pav}});if(error)return toast(error.message);
+  tm=$('#pt').value;localStorage.th=tm;applyTheme();if(user)sb.from('profiles').update({theme:tm}).eq('id',user.id).then(()=>{});setTimeout(setAv,300);toast('Profile saved')}
+ if(t.id==='pu'){const p=$('#pp').value;if(p.length<8)return toast('Use at least 8 characters');const{error}=await sb.auth.updateUser({password:p});toast(error?error.message:'Password updated');$('#pp').value=''}});
+// help chat
+const say=(t,me)=>{const d=document.createElement('div');d.textContent=t;if(me)d.className='me';$('#cm2').append(d);$('#cm2').scrollTop=1e9};
+const bot=q=>{q=q.toLowerCase();return /pay|upi|price|cost/.test(q)?`After you place an order, pay ${L.UPI_ID} and put your order reference in the note.${L.CONTACT?' Then message '+L.CONTACT+'.':''}`:
+ /where|book|download|library|file/.test(q)?'Open My Library. Your book gets a Download PDF button once payment is confirmed.':
+ /password|account|profile|name/.test(q)?'Open Profile to change your name, avatar, theme or password.':
+ /refund|cancel|problem|contact|help|support/.test(q)?(L.CONTACT?'Message us at '+L.CONTACT+' with your order reference and we will help.':'Send us your order reference and we will help.'):'I can help with payments, downloads and your account. Try one of the quick buttons below.'};
+say('Hi! Ask me about payments, downloads or your account.');
+const ask=t=>{if(!t.trim())return;say(t,1);setTimeout(()=>say(bot(t)),400)};
+$('#hp').onclick=()=>$('#chat').classList.toggle('open');$('#cx').onclick=()=>$('#chat').classList.remove('open');
+$('#cf').onsubmit=e=>{e.preventDefault();ask($('#ci').value);$('#ci').value=''};$('.chips').onclick=e=>{if(e.target.tagName==='BUTTON')ask(e.target.textContent)};
+load();
+</script></body></html>
